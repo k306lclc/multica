@@ -625,10 +625,24 @@ func tryParseOpenclawResult(raw string) (openclawResult, bool) {
 	if err := json.Unmarshal([]byte(raw), &result); err != nil {
 		return openclawResult{}, false
 	}
-	if result.Payloads == nil && result.Meta.DurationMs == 0 {
+	if result.Payloads != nil || result.Meta.DurationMs != 0 {
+		return result, true
+	}
+	// Gateway mode wraps the same payload/meta result in a terminal envelope.
+	// Only unwrap a completed success, not an acknowledgement or unrelated JSON.
+	var envelope struct {
+		Status  string          `json:"status"`
+		Summary string          `json:"summary"`
+		Result  *openclawResult `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(raw), &envelope); err != nil {
 		return openclawResult{}, false
 	}
-	return result, true
+	if envelope.Status != "ok" || envelope.Summary != "completed" || envelope.Result == nil {
+		return openclawResult{}, false
+	}
+	result = *envelope.Result
+	return result, result.Payloads != nil || result.Meta.DurationMs != 0
 }
 
 // buildOpenclawEventResult extracts text and metadata from a final result blob.

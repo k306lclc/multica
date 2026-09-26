@@ -14,6 +14,56 @@ import (
 
 // ── Legacy result format tests (processOutput with final JSON blob) ──
 
+func TestOpenclawProcessOutputGatewayEnvelope(t *testing.T) {
+	t.Parallel()
+	// Synthetic fixture: never retain a real gateway response or its prompt report.
+	raw := `{"runId":"smoke","status":"ok","summary":"completed","result":{"payloads":[{"text":"SMOKE_OK"}],"meta":{"durationMs":12,"agentMeta":{"sessionId":"test-session","model":"test-model","usage":{"input":10,"output":2}},"systemPromptReport":{"ignored":"internal metadata"}}}}`
+	var value any
+	if err := json.Unmarshal([]byte(raw), &value); err != nil {
+		t.Fatal(err)
+	}
+	indented, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, input := range map[string]string{"compact": raw, "pretty": string(indented), "prefixed": "gateway ready\n" + string(indented)} {
+		t.Run(name, func(t *testing.T) {
+			b := &openclawBackend{cfg: Config{Logger: slog.Default()}}
+			ch := make(chan Message, 8)
+			res := b.processOutput(strings.NewReader(input), ch)
+			if res.status != "completed" || res.output != "SMOKE_OK" || res.sessionID != "test-session" || res.model != "test-model" {
+				t.Fatalf("gateway result not normalized: status=%s session=%s model=%s output length=%d", res.status, res.sessionID, res.model, len(res.output))
+			}
+			if res.usage.InputTokens != 10 || res.usage.OutputTokens != 2 {
+				t.Fatalf("usage lost: %+v", res.usage)
+			}
+			close(ch)
+			var messages []Message
+			for msg := range ch {
+				messages = append(messages, msg)
+			}
+			if len(messages) != 1 || messages[0].Type != MessageText || messages[0].Content != "SMOKE_OK" {
+				t.Fatalf("expected one payload text message, got %d", len(messages))
+			}
+		})
+	}
+}
+
+func TestOpenclawResultRejectsUnrecognizedGatewayEnvelope(t *testing.T) {
+	t.Parallel()
+	for _, raw := range []string{
+		`{"status":"error","summary":"completed","result":{"payloads":[{"text":"partial"}]}}`,
+		`{"status":"ok","summary":"queued","result":{"payloads":[{"text":"partial"}]}}`,
+		`{"status":"ok","summary":"completed","result":{}}`,
+		`{"status":"ok","summary":"completed","result":null}`,
+		`{"result":{"payloads":[{"text":"unrelated JSON"}]}}`,
+	} {
+		if _, ok := tryParseOpenclawResult(raw); ok {
+			t.Fatal("accepted a non-success or unrecognized gateway envelope")
+		}
+	}
+}
+
 func TestOpenclawProcessOutputHappyPath(t *testing.T) {
 	t.Parallel()
 
