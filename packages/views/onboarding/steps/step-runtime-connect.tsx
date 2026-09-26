@@ -52,7 +52,7 @@ export function StepRuntimeConnect({
   wsSlug?: string;
   onNext: (runtime: AgentRuntime | null, model?: string) => void | Promise<void>;
   /** Runtime picker labels rows by owner; injected for the same reason. */
-  currentUserId?: string | null;
+  currentUserId: string;
   /** Platform-level rescan hook. Desktop wires this to restart the
    *  bundled daemon so a freshly-installed CLI shows up — otherwise the
    *  daemon's PATH probe runs once at boot and never re-probes. */
@@ -66,7 +66,7 @@ export function StepRuntimeConnect({
   runtimesPending?: boolean;
 }) {
   const { runtimes, selected, selectedId, setSelectedId } =
-    useRuntimePicker(wsId, wsSlug);
+    useRuntimePicker(wsId, currentUserId, wsSlug);
 
   return (
     <FancyView

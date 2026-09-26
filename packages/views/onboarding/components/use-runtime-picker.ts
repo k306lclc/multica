@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWSEvent } from "@multica/core/realtime";
+import { isRuntimeUsableForUser } from "@multica/core/runtimes";
 import {
   runtimeKeys,
   runtimeListOptions,
@@ -18,10 +19,11 @@ import type { AgentRuntime } from "@multica/core/types";
  *   - `daemon:register` WS event triggers an instant refetch — no
  *     polling lag for online users.
  *   - Auto-selects online first, falls back to the first runtime.
- *     Only runs when the user hasn't picked anything, so a manual
- *     selection survives subsequent refetches.
+ *     A manual selection survives refetches while that runtime remains usable.
+ *   - Includes workspace-shared machines, but never offers another member's
+ *     private or ownerless runtime as an execution target.
  */
-export function useRuntimePicker(wsId: string, wsSlug?: string): {
+export function useRuntimePicker(wsId: string, currentUserId: string, wsSlug?: string): {
   runtimes: AgentRuntime[];
   selected: AgentRuntime | null;
   selectedId: string | null;
@@ -30,10 +32,22 @@ export function useRuntimePicker(wsId: string, wsSlug?: string): {
 } {
   const qc = useQueryClient();
 
-  const { data: runtimes = [] } = useQuery({
-    ...runtimeListOptions(wsId, "me", wsSlug),
-    refetchInterval: (q) => (q.state.data?.length ? false : 2000),
+  const { data: listedRuntimes = [] } = useQuery({
+    ...runtimeListOptions(wsId, undefined, wsSlug),
+    refetchInterval: (q) =>
+      q.state.data?.some((runtime) =>
+        isRuntimeUsableForUser(runtime, currentUserId),
+      )
+        ? false
+        : 2000,
   });
+  const runtimes = useMemo(
+    () =>
+      listedRuntimes.filter((runtime) =>
+        isRuntimeUsableForUser(runtime, currentUserId),
+      ),
+    [listedRuntimes, currentUserId],
+  );
 
   const handleDaemonEvent = useCallback(() => {
     qc.invalidateQueries({ queryKey: runtimeKeys.all(wsId) });
@@ -43,10 +57,10 @@ export function useRuntimePicker(wsId: string, wsSlug?: string): {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (selectedId) return;
+    if (selectedId && runtimes.some((runtime) => runtime.id === selectedId)) return;
     const preferred =
       runtimes.find((r) => r.status === "online") ?? runtimes[0];
-    if (preferred) setSelectedId(preferred.id);
+    setSelectedId(preferred?.id ?? null);
   }, [runtimes, selectedId]);
 
   const selected = runtimes.find((r) => r.id === selectedId) ?? null;

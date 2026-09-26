@@ -410,6 +410,7 @@ function OnboardingStepFlow({
           <StepRuntimeConnect
             wsId={workspace.id}
             wsSlug={workspace.slug}
+            currentUserId={user.id}
             onNext={handleRuntimeNext}
             onRefresh={onRuntimeRefresh}
             runtimesPending={runtimesPending}
@@ -418,6 +419,7 @@ function OnboardingStepFlow({
           <StepPlatformFork
             wsId={workspace.id}
             wsSlug={workspace.slug}
+            currentUserId={user.id}
             onNext={handleRuntimeNext}
             cliInstructions={runtimeInstructions}
           />

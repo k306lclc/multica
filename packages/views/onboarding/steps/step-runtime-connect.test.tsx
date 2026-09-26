@@ -47,6 +47,7 @@ function renderStep(props: { runtimesPending?: boolean } = {}) {
       <I18nProvider locale="en" resources={TEST_RESOURCES}>
         <StepRuntimeConnect
           wsId="ws_test"
+          currentUserId="user_test"
           onNext={onNext}
           runtimesPending={props.runtimesPending}
         />

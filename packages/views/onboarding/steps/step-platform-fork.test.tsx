@@ -60,6 +60,7 @@ function renderFork(
     <I18nProvider locale="en" resources={TEST_RESOURCES}>
       <StepPlatformFork
         wsId="ws_test"
+        currentUserId="user_test"
         onNext={onNext}
         cliInstructions={<div data-testid="cli-instructions">install me</div>}
         {...overrides}
