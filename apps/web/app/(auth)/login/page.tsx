@@ -29,6 +29,7 @@ import { setLoggedInCookie } from "@/features/auth/auth-cookie";
 import Link from "next/link";
 import { LoginPage, validateCliCallback } from "@multica/views/auth";
 import { useT } from "@multica/views/i18n";
+import { desktopAuthUrl, desktopHandoffForPlatform } from "@/lib/desktop-handoff";
 
 /**
  * Pick where a logged-in user with no explicit `?next=` should land.
@@ -68,7 +69,8 @@ function LoginPageContent() {
   const cliCallbackRaw = searchParams.get("cli_callback");
   const cliState = searchParams.get("cli_state") || "";
   const platform = searchParams.get("platform");
-  const isDesktopHandoff = platform === "desktop" && !cliCallbackRaw;
+  const desktopHandoff = desktopHandoffForPlatform(platform);
+  const isDesktopHandoff = desktopHandoff !== null && !cliCallbackRaw;
   // `next` carries a protected URL the user was originally headed to
   // (e.g. /invite/{id}). With URL-driven workspaces there is no legacy
   // "/issues" default — if `next` is absent we decide after login based on
@@ -103,7 +105,7 @@ function LoginPageContent() {
         .issueCliToken()
         .then(({ token }) => {
           setDesktopToken(token);
-          window.location.href = `multica://auth/callback?token=${encodeURIComponent(token)}`;
+          window.location.href = desktopAuthUrl(desktopHandoff!, token);
         })
         .catch((err) => {
           setDesktopError(
@@ -134,7 +136,7 @@ function LoginPageContent() {
       .catch(() => [] as Workspace[])
       .then((list) => resolveLoggedInDestination(qc, hasOnboarded, list))
       .then((dest) => router.replace(dest));
-  }, [isLoading, user, router, nextUrl, cliCallbackRaw, isDesktopHandoff, hasOnboarded, qc]);
+  }, [isLoading, user, router, nextUrl, cliCallbackRaw, isDesktopHandoff, desktopHandoff, hasOnboarded, qc]);
 
   const handleSuccess = async () => {
     // Read the latest user snapshot directly — the closure's `hasOnboarded`
@@ -155,7 +157,7 @@ function LoginPageContent() {
   // post-login callback page can redirect the JWT back to the CLI's local
   // HTTP listener (critical for headless / WSL2 environments).
   const googleState = [
-    platform === "desktop" ? "platform:desktop" : "",
+    desktopHandoff ? `platform:${desktopHandoff.platform}` : "",
     nextUrl ? `next:${nextUrl}` : "",
     cliCallbackRaw && validateCliCallback(cliCallbackRaw)
       ? `cli_callback:${encodeURIComponent(cliCallbackRaw)}`
@@ -201,7 +203,7 @@ function LoginPageContent() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  window.location.href = `multica://auth/callback?token=${encodeURIComponent(desktopToken)}`;
+                  window.location.href = desktopAuthUrl(desktopHandoff!, desktopToken);
                 }}
               >
                 {t(($) => $.web.desktop_handoff.open_button)}

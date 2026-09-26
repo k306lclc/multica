@@ -240,6 +240,7 @@ describe("CallbackPage", () => {
 
   it.each([
     ["Desktop", "platform:desktop"],
+    ["Desktop Cowork", "platform:desktop-cowork"],
     ["CLI", "cli_callback:http://127.0.0.1:46233/callback,cli_state:test"],
   ])("uses the same localized error handling for the %s callback", async (_flow, state) => {
     const { api: mockedApi } = await import("@multica/core/api");

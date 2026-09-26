@@ -1,0 +1,12 @@
+extends: ./electron-builder.yml
+appId: com.kevinlin.multica.cowork
+productName: Multica Cowork
+protocols:
+  name: Multica Cowork
+  schemes:
+    - multica-cowork
+publish: null
+mac:
+  artifactName: multica-cowork-${version}-mac-${arch}.${ext}
+dmg:
+  artifactName: multica-cowork-${version}-mac-${arch}.${ext}

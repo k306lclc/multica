@@ -107,8 +107,11 @@ describe("LoginPage", () => {
   // and the Desktop app redirects them to /login?platform=desktop, the web
   // must exchange the cookie session for a bearer token and hand it off via
   // the multica:// deep link, not silently redirect to the workspace page.
-  it("mints a token and deep-links to Desktop when already logged in with platform=desktop", async () => {
-    searchParamsState.params = new URLSearchParams({ platform: "desktop" });
+  it.each([
+    ["desktop", "multica://auth/callback?token=handoff-jwt"],
+    ["desktop-cowork", "multica-cowork://auth/callback?token=handoff-jwt"],
+  ])("mints a token and deep-links to %s when already logged in", async (platform, expectedUrl) => {
+    searchParamsState.params = new URLSearchParams({ platform });
     authStateRef.state.user = { id: "u1", email: "test@multica.ai" };
     mockIssueCliToken.mockImplementation(() =>
       Promise.resolve({ token: "handoff-jwt" }),
@@ -128,9 +131,7 @@ describe("LoginPage", () => {
         expect(mockIssueCliToken).toHaveBeenCalledTimes(1);
       });
       await waitFor(() => {
-        expect(hrefSetter).toHaveBeenCalledWith(
-          "multica://auth/callback?token=handoff-jwt",
-        );
+        expect(hrefSetter).toHaveBeenCalledWith(expectedUrl);
       });
       expect(
         await screen.findByRole("button", { name: "Open Multica Desktop" }),

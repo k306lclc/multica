@@ -25,7 +25,8 @@ import { daemonStatusAlive } from "../shared/daemon-types";
 import { ensureManagedCli, managedCliPath } from "./cli-bootstrap";
 import { decideVersionAction } from "./version-decision";
 import {
-  deriveProfileName,
+  deriveDesktopProfileName,
+  desktopPrefsPath,
   healthPortForProfile,
   profileArgs,
   profileConfigPath,
@@ -34,6 +35,7 @@ import {
   profilePidPath,
   profileUserIdPath,
 } from "./daemon-profile";
+import { DESKTOP_BUILD_IDENTITY } from "../shared/build-identity";
 import {
   DaemonOperationGate,
   DaemonRecoveryPolicy,
@@ -54,7 +56,7 @@ import {
 } from "./daemon-auth-probe";
 
 const POLL_INTERVAL_MS = 5_000;
-const PREFS_PATH = join(homedir(), ".multica", "desktop_prefs.json");
+const PREFS_PATH = desktopPrefsPath(DESKTOP_BUILD_IDENTITY.localFork);
 const LOG_TAIL_RETRY_MS = 2_000;
 const LOG_TAIL_MAX_RETRIES = 5;
 // How long a start may sit in "starting" (with no /health) before we probe the
@@ -74,7 +76,11 @@ const HEALTH_PROBE_TIMEOUT_MS = 2_000;
 // misses this second independent window is no longer treated as merely busy.
 const RECOVERY_HEALTH_PROBE_TIMEOUT_MS = 10_000;
 
-const DEFAULT_PREFS: DaemonPrefs = { autoStart: true, autoStop: false };
+const DEFAULT_PREFS: DaemonPrefs = {
+  // A local fork must never start a second daemon merely because the App opens.
+  autoStart: !DESKTOP_BUILD_IDENTITY.localFork,
+  autoStop: false,
+};
 
 // Always a resolved Desktop-owned profile. "Not resolved yet" is represented by
 // `null` at every call site, never by an empty name — see daemon-profile.ts.
@@ -274,7 +280,7 @@ async function resolveActiveProfile(): Promise<ActiveProfile | null> {
   const target = targetApiBaseUrl;
   if (!target) return null;
 
-  const name = deriveProfileName(target);
+  const name = deriveDesktopProfileName(target, DESKTOP_BUILD_IDENTITY.localFork);
   const cfg = await readProfileConfig(name);
 
   if (cfg.server_url !== target) {
@@ -512,6 +518,15 @@ async function resolveCliBinary(): Promise<string | null> {
         cachedCliBinaryVersion = version;
         return bundled;
       }
+    }
+
+    if (DESKTOP_BUILD_IDENTITY.localFork) {
+      // The fork must not silently install or execute an unrelated upstream
+      // CLI when its same-source bundled binary is missing or invalid.
+      console.error("[daemon] local fork bundled CLI is unavailable");
+      cachedCliBinary = null;
+      cachedCliBinaryVersion = null;
+      return null;
     }
 
     const managed = managedCliPath();

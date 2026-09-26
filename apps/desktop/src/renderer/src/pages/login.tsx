@@ -1,6 +1,7 @@
 import { LoginPage } from "@multica/views/auth";
 import { DragStrip } from "@multica/views/platform";
 import { MulticaIcon } from "@multica/ui/components/common/multica-icon";
+import { DESKTOP_BUILD_IDENTITY } from "../../../shared/build-identity";
 
 function requireRuntimeAppUrl(): string {
   const runtimeConfig = window.desktopAPI.runtimeConfig;
@@ -18,7 +19,7 @@ export function DesktopLoginPage() {
     // Open web login page in the default browser with platform=desktop flag.
     // The web callback will redirect back via multica:// deep link with the token.
     window.desktopAPI.openExternal(
-      `${webUrl}/login?platform=desktop`,
+      `${webUrl}/login?platform=${DESKTOP_BUILD_IDENTITY.handoffPlatform}`,
     );
   };
 

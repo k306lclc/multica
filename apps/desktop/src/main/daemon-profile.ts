@@ -26,13 +26,22 @@ export function assertResolvedProfile(profile: string): void {
 // never reads or writes the user's hand-configured profiles. Profile dir:
 //   ~/.multica/profiles/desktop-<host>/
 export function deriveProfileName(targetUrl: string): string {
+  return deriveDesktopProfileName(targetUrl, false);
+}
+
+export function deriveDesktopProfileName(targetUrl: string, localFork: boolean): string {
+  const prefix = localFork ? "desktop-cowork" : "desktop";
   try {
     const url = new URL(targetUrl);
     const host = url.host.replace(/:/g, "-").toLowerCase();
-    return `desktop-${host}`;
+    return `${prefix}-${host}`;
   } catch {
-    return "desktop";
+    return prefix;
   }
+}
+
+export function desktopPrefsPath(localFork: boolean, home = homedir()): string {
+  return join(home, ".multica", localFork ? "desktop_cowork_prefs.json" : "desktop_prefs.json");
 }
 
 /**

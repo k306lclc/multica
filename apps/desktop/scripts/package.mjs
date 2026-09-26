@@ -27,7 +27,7 @@
 // real `git describe` invocation against a throwaway repo.
 
 import { execFileSync, spawnSync } from "node:child_process";
-import { rmSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { delimiter, dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -262,6 +262,23 @@ export function parsePackageArgs(argv) {
   };
 }
 
+export function validateCoworkPackageArgs(argv, localFork) {
+  const hasForkConfig = argv.some((arg, index) =>
+    arg === "--config=electron-builder.cowork.yml" ||
+    (arg === "--config" && argv[index + 1] === "electron-builder.cowork.yml"),
+  );
+  if (localFork !== hasForkConfig) {
+    throw new Error("[package] the local fork build flag and packaging config must match");
+  }
+  if (!localFork) return;
+  const noPublish = argv.some((arg, index) =>
+    arg === "--publish=never" || (arg === "--publish" && argv[index + 1] === "never"),
+  );
+  if (!noPublish) {
+    throw new Error("[package] the local fork must use --publish never");
+  }
+}
+
 export function resolveBuildMatrix(parsed, platform = process.platform, arch = process.arch) {
   if (parsed.allPlatforms) {
     if (parsed.requestedPlatforms.length > 0 || parsed.requestedArchs.length > 0) {
@@ -360,6 +377,13 @@ export function builderArgsForTarget(
 
 function main() {
   const passthrough = stripLeadingSeparator(process.argv.slice(2));
+  const localFork = process.env.MULTICA_COWORK_BUILD === "1";
+  validateCoworkPackageArgs(passthrough, localFork);
+  if (localFork) {
+    // Upstream packaging tolerates a missing Go toolchain and downloads the
+    // released CLI at runtime. An internal fork must ship its matching CLI.
+    execFileSync("go", ["version"], { stdio: "ignore" });
+  }
   const parsed = parsePackageArgs(passthrough);
   const buildMatrix = resolveBuildMatrix(parsed);
   console.log(
@@ -446,6 +470,13 @@ function main() {
         cwd: desktopRoot,
       },
     );
+    if (localFork) {
+      const binaryName = target.platform === "win" ? "multica.exe" : "multica";
+      const bundledCli = resolve(desktopRoot, "resources", "bin", binaryName);
+      if (!existsSync(bundledCli)) {
+        throw new Error(`[package] local fork is missing its bundled CLI: ${bundledCli}`);
+      }
+    }
 
     const builderArgs = builderArgsForTarget(target, parsed, version, {
       disableMacNotarize,

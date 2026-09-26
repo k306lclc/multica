@@ -6,6 +6,8 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_HEALTH_PORT,
   deriveProfileName,
+  deriveDesktopProfileName,
+  desktopPrefsPath,
   healthPortForProfile,
   profileArgs,
   profileConfigPath,
@@ -19,6 +21,20 @@ const MULTICA_DIR = join(homedir(), ".multica");
 const DEFAULT_CLI_CONFIG = join(MULTICA_DIR, "config.json");
 
 describe("deriveProfileName", () => {
+  it("gives the local fork a separate daemon profile for the same server", () => {
+    const server = "http://127.0.0.1:8080";
+    expect(deriveDesktopProfileName(server, false)).toBe("desktop-127.0.0.1-8080");
+    expect(deriveDesktopProfileName(server, true)).toBe("desktop-cowork-127.0.0.1-8080");
+    expect(healthPortForProfile(deriveDesktopProfileName(server, true)))
+      .not.toBe(healthPortForProfile(deriveDesktopProfileName(server, false)));
+  });
+
+  it("does not share daemon preferences with the official app", () => {
+    expect(desktopPrefsPath(false, "/tmp/home"))
+      .toBe("/tmp/home/.multica/desktop_prefs.json");
+    expect(desktopPrefsPath(true, "/tmp/home"))
+      .toBe("/tmp/home/.multica/desktop_cowork_prefs.json");
+  });
   it("names the profile after the target host", () => {
     expect(deriveProfileName("https://api.multica.ai")).toBe(
       "desktop-api.multica.ai",

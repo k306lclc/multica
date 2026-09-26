@@ -9,6 +9,7 @@ import { setupDaemonManager } from "./daemon-manager";
 import { setupLocalDirectory } from "./local-directory";
 import { openExternalSafely, downloadURLSafely } from "./external-url";
 import { installContextMenu } from "./context-menu";
+import { installApplicationMenu } from "./application-menu";
 import { handleAppShortcut } from "./keyboard-shortcuts";
 import { installNavigationGestures } from "./navigation-gestures";
 import { installNavigationGuard } from "./navigation-guard";
@@ -62,6 +63,7 @@ import {
   NotificationGate,
   parseNativeNotificationPayload,
 } from "./notification-gate";
+import { DESKTOP_BUILD_IDENTITY } from "../shared/build-identity";
 
 // Guards against registering the will-download handler more than once on the
 // same session. window.webContents.session is shared, and createWindow() can
@@ -121,7 +123,7 @@ if (process.platform !== "win32") {
   ]);
 }
 
-const PROTOCOL = "multica";
+const PROTOCOL = DESKTOP_BUILD_IDENTITY.protocol;
 const devLog = is.dev ? createBestEffortDevLog() : undefined;
 
 // Where the main process parks a freeze/crash breadcrumb until the next
@@ -570,7 +572,13 @@ if (is.dev) {
   // to "Multica", but anchoring it here makes WM_CLASS ↔ StartupWMClass
   // (declared in electron-builder.yml) survive a regression in
   // productName / the build pipeline. Must run before requestSingleInstanceLock().
-  app.setName("Multica");
+  app.setName(DESKTOP_BUILD_IDENTITY.appName);
+  if (DESKTOP_BUILD_IDENTITY.localFork) {
+    app.setPath(
+      "userData",
+      join(app.getPath("appData"), DESKTOP_BUILD_IDENTITY.appName),
+    );
+  }
 }
 
 // --- Protocol registration -----------------------------------------------
@@ -637,8 +645,9 @@ if (!gotTheLock) {
     });
 
     electronApp.setAppUserModelId(
-      is.dev ? "ai.multica.desktop.dev" : "ai.multica.desktop",
+      is.dev ? "ai.multica.desktop.dev" : DESKTOP_BUILD_IDENTITY.appId,
     );
+    installApplicationMenu();
 
     // macOS: replace the default Electron dock icon with the bundled logo
     // so the Canary dev build is visually distinct from a stock Electron
@@ -838,7 +847,7 @@ if (!gotTheLock) {
     desktopInitialized = true;
     createWindow();
 
-    setupAutoUpdater(() => mainWindow);
+    setupAutoUpdater(() => mainWindow, DESKTOP_BUILD_IDENTITY.localFork);
     setupDaemonManager(() => mainWindow);
     setupLocalDirectory(() => mainWindow);
 

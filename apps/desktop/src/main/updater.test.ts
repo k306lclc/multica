@@ -279,4 +279,24 @@ describe("setupAutoUpdater", () => {
       "boom",
     );
   });
+
+  it("never reaches the upstream update feed in the local fork", async () => {
+    setupAutoUpdater(() => null, true);
+
+    await expect(invokeIpc("updater:get-preferences")).resolves.toEqual({
+      automaticUpdates: false,
+    });
+    await expect(invokeIpc("updater:set-automatic-updates", true)).rejects.toThrow(
+      "Multica Cowork",
+    );
+    await expect(invokeIpc("updater:check")).resolves.toMatchObject({ ok: false });
+    await expect(invokeIpc("updater:download")).rejects.toThrow("Multica Cowork");
+    await expect(invokeIpc("updater:install")).rejects.toThrow("Multica Cowork");
+
+    await vi.advanceTimersByTimeAsync(60 * 60 * 1000 + 5_000);
+    expect(ctx.handlers.size).toBe(0);
+    expect(ctx.checkForUpdates).not.toHaveBeenCalled();
+    expect(ctx.downloadUpdate).not.toHaveBeenCalled();
+    expect(ctx.quitAndInstall).not.toHaveBeenCalled();
+  });
 });

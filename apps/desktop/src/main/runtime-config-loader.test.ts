@@ -3,9 +3,53 @@ import { mkdtemp, writeFile } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
 import { describe, expect, it } from "vitest";
-import { loadRuntimeConfig } from "./runtime-config-loader";
+import { desktopConfigPath, loadRuntimeConfig } from "./runtime-config-loader";
 
 describe("loadRuntimeConfig", () => {
+  it("keeps the local fork configuration separate from the official Desktop", () => {
+    expect(desktopConfigPath(false, "/tmp/home"))
+      .toBe("/tmp/home/.multica/desktop.json");
+    expect(desktopConfigPath(true, "/tmp/home"))
+      .toBe("/tmp/home/.multica/desktop-cowork.json");
+  });
+
+  it("does not silently connect a local fork to the official cloud", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "multica-desktop-config-"));
+    const configPath = join(dir, "desktop-cowork.json");
+    const result = await loadRuntimeConfig({
+      isDev: false,
+      localFork: true,
+      configPath,
+      env: {},
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.message).toContain(configPath);
+  });
+
+  it("uses only the explicit local fork config", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "multica-desktop-config-"));
+    const configPath = join(dir, "desktop-cowork.json");
+    await writeFile(configPath, JSON.stringify({
+      schemaVersion: 1,
+      apiUrl: "http://127.0.0.1:8080",
+      appUrl: "http://127.0.0.1:3000",
+    }));
+    const result = await loadRuntimeConfig({
+      isDev: false,
+      localFork: true,
+      configPath,
+      env: {},
+    });
+    expect(result).toEqual({
+      ok: true,
+      config: {
+        schemaVersion: 1,
+        apiUrl: "http://127.0.0.1:8080",
+        wsUrl: "ws://127.0.0.1:8080/ws",
+        appUrl: "http://127.0.0.1:3000",
+      },
+    });
+  });
   it("uses dev env and ignores desktop.json during electron-vite dev", async () => {
     const dir = await mkdtemp(join(tmpdir(), "multica-desktop-config-"));
     const configPath = join(dir, "desktop.json");

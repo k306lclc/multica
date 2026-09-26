@@ -20,6 +20,7 @@ import { Button } from "@multica/ui/components/ui/button";
 import { useT } from "@multica/views/i18n";
 import { Loader2 } from "lucide-react";
 import { callbackErrorFrom, type CallbackError } from "./callback-error";
+import { desktopAuthUrl, desktopHandoffFromOAuthState } from "@/lib/desktop-handoff";
 
 const authLogger = createLogger("auth.callback");
 
@@ -31,6 +32,7 @@ function CallbackContent() {
   const loginWithGoogle = useAuthStore((s) => s.loginWithGoogle);
   const [error, setError] = useState<CallbackError | null>(null);
   const [desktopToken, setDesktopToken] = useState<string | null>(null);
+  const desktopHandoff = desktopHandoffFromOAuthState(searchParams.get("state"));
 
   useEffect(() => {
     const code = searchParams.get("code");
@@ -52,7 +54,6 @@ function CallbackContent() {
 
     const state = searchParams.get("state") || "";
     const stateParts = state.split(",");
-    const isDesktop = stateParts.includes("platform:desktop");
     const nextPart = stateParts.find((p) => p.startsWith("next:"));
     // Strip "next:" prefix, then drop anything that isn't a safe relative path
     // so an attacker-controlled `state=next:https://evil` cannot redirect here.
@@ -91,13 +92,13 @@ function CallbackContent() {
           authLogger.error("CLI Google OAuth callback failed", err);
           setError(callbackErrorFrom(err));
         });
-    } else if (isDesktop) {
+    } else if (desktopHandoff) {
       // Desktop flow: exchange code for token, then redirect via deep link
       api
         .googleLogin(code, redirectUri)
         .then(({ token }) => {
           setDesktopToken(token);
-          window.location.href = `multica://auth/callback?token=${encodeURIComponent(token)}`;
+          window.location.href = desktopAuthUrl(desktopHandoff, token);
         })
         .catch((err) => {
           authLogger.error("Desktop Google OAuth callback failed", err);
@@ -155,7 +156,7 @@ function CallbackContent() {
           setError(callbackErrorFrom(err));
         });
     }
-  }, [searchParams, loginWithGoogle, router, qc]);
+  }, [searchParams, loginWithGoogle, router, qc, desktopHandoff]);
 
   const errorDescription = (() => {
     if (!error) return null;
@@ -197,7 +198,7 @@ function CallbackContent() {
             <Button
               variant="outline"
               onClick={() => {
-                window.location.href = `multica://auth/callback?token=${encodeURIComponent(desktopToken)}`;
+                window.location.href = desktopAuthUrl(desktopHandoff!, desktopToken);
               }}
             >
               {t(($) => $.web.desktop_handoff.open_button)}

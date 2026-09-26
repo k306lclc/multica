@@ -27,6 +27,7 @@
     "typecheck": "pnpm run typecheck:node && pnpm run typecheck:web",
     "preview": "electron-vite preview",
     "package": "node scripts/package.mjs",
+    "package:cowork": "MULTICA_COWORK_BUILD=1 CSC_IDENTITY_AUTO_DISCOVERY=false APPLE_TEAM_ID= node scripts/package.mjs --mac --arm64 --publish never --config electron-builder.cowork.yml",
     "package:all": "node scripts/package.mjs --all-platforms --publish never",
     "lint": "eslint .",
     "test": "vitest run",

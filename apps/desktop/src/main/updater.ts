@@ -10,22 +10,7 @@ import {
   saveUpdaterPreferences,
   updaterPreferencesPath,
 } from "./updater-preferences";
-
-// Silent background updates: electron-updater downloads on its own as soon
-// as `update-available` fires; we only surface UI when the package is fully
-// downloaded and ready to install on next quit.
-autoUpdater.autoDownload = true;
-autoUpdater.autoInstallOnAppQuit = true;
-
-// Windows arm64 ships its own update metadata channel because
-// electron-builder's `latest.yml` is not arch-suffixed on Windows — both
-// arches would otherwise collide on the same file in the GitHub Release.
-// See scripts/package.mjs (builderArgsForTarget) for the publish-side half
-// of this pact. Pin the channel here so arm64 clients fetch
-// `latest-arm64.yml` instead of the x64 metadata.
-if (process.platform === "win32" && process.arch === "arm64") {
-  autoUpdater.channel = "latest-arm64";
-}
+import { DESKTOP_BUILD_IDENTITY } from "../shared/build-identity";
 
 interface ChannelConfigurableUpdater {
   channel: string | null;
@@ -45,11 +30,6 @@ export function configureMacX64UpdateChannel(
   updater.channel = "latest-x64";
   updater.allowDowngrade = false;
 }
-
-// electron-builder does not architecture-suffix macOS update metadata.
-// package.mjs publishes macOS x64 as `latest-x64-mac.yml`; the established
-// arm64 feed and runtime path remain unchanged.
-configureMacX64UpdateChannel(autoUpdater);
 
 const STARTUP_CHECK_DELAY_MS = 5_000;
 const PERIODIC_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
@@ -109,7 +89,45 @@ function checkForUpdatesOnce(): Promise<unknown> {
   return p;
 }
 
-export function setupAutoUpdater(getMainWindow: () => BrowserWindow | null): void {
+const LOCAL_FORK_UPDATE_MESSAGE =
+  "Multica Cowork 本地版不連線官方更新來源；請從協作版本倉庫取得新版。";
+
+export function setupAutoUpdater(
+  getMainWindow: () => BrowserWindow | null,
+  localFork = DESKTOP_BUILD_IDENTITY.localFork,
+): void {
+  if (localFork) {
+    autoUpdater.autoDownload = false;
+    autoUpdater.autoInstallOnAppQuit = false;
+    ipcMain.handle("updater:get-preferences", () => ({ automaticUpdates: false }));
+    ipcMain.handle("updater:set-automatic-updates", (_event, enabled: unknown) => {
+      if (typeof enabled !== "boolean") {
+        throw new TypeError("automaticUpdates must be a boolean");
+      }
+      if (enabled) throw new Error(LOCAL_FORK_UPDATE_MESSAGE);
+      return { automaticUpdates: false };
+    });
+    ipcMain.handle("updater:check", (): ManualUpdateCheckResult => ({
+      ok: false,
+      error: LOCAL_FORK_UPDATE_MESSAGE,
+    }));
+    ipcMain.handle("updater:download", () => {
+      throw new Error(LOCAL_FORK_UPDATE_MESSAGE);
+    });
+    ipcMain.handle("updater:install", () => {
+      throw new Error(LOCAL_FORK_UPDATE_MESSAGE);
+    });
+    return;
+  }
+
+  // Upstream builds keep their existing automatic update behavior and feed.
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  if (process.platform === "win32" && process.arch === "arm64") {
+    autoUpdater.channel = "latest-arm64";
+  }
+  configureMacX64UpdateChannel(autoUpdater);
+
   const preferencesFilePath = updaterPreferencesPath(app.getPath("userData"));
   let automaticUpdatesEnabled =
     DEFAULT_UPDATER_PREFERENCES.automaticUpdates;

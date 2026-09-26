@@ -35,6 +35,7 @@ import {
   tearDownOnSessionExpiry,
   type SessionTeardown,
 } from "./platform/session-teardown";
+import { DESKTOP_BUILD_IDENTITY } from "../../shared/build-identity";
 
 // BCP-47 region tags for the <html lang> attribute, mirroring
 // apps/web/app/layout.tsx HTML_LANG. index.html ships a static lang="en";
@@ -44,6 +45,7 @@ import {
 const HTML_LANG: Record<SupportedLocale, string> = {
   en: "en",
   "zh-Hans": "zh-CN",
+  "zh-Hant": "zh-TW",
   ko: "ko-KR",
   ja: "ja-JP",
   fr: "fr-FR",
@@ -341,12 +343,21 @@ function AppContent() {
 }
 
 function BlockingRuntimeConfigError({ message }: { message: string }) {
+  const configName = DESKTOP_BUILD_IDENTITY.localFork
+    ? "desktop-cowork.json"
+    : "desktop.json";
   return (
     <div className="flex h-screen items-center justify-center bg-background p-8 text-foreground">
       <div className="max-w-xl rounded-lg border bg-card p-6 shadow-sm">
-        <h1 className="text-title font-semibold">Desktop configuration error</h1>
+        <h1 className="text-title font-semibold">
+          {DESKTOP_BUILD_IDENTITY.localFork ? "桌面版設定錯誤" : "Desktop configuration error"}
+        </h1>
         <p className="mt-3 text-body text-muted-foreground">
-          Multica Desktop could not load <code>~/.multica/desktop.json</code>. Fix or remove the file and restart the app.
+          {DESKTOP_BUILD_IDENTITY.localFork ? (
+            <>Multica Cowork 無法讀取 <code>~/.multica/{configName}</code>。請修正設定檔後重新啟動 App。</>
+          ) : (
+            <>Multica Desktop could not load <code>~/.multica/desktop.json</code>. Fix or remove the file and restart the app.</>
+          )}
         </p>
         <pre className="mt-4 whitespace-pre-wrap rounded-md bg-muted p-3 text-caption text-muted-foreground">
           {message}

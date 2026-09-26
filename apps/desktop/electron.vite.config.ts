@@ -3,11 +3,22 @@ import { defineConfig, externalizeDepsPlugin } from "electron-vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
+const buildIdentityDefine = {
+  __MULTICA_COWORK_BUILD__: JSON.stringify(process.env.MULTICA_COWORK_BUILD === "1"),
+};
+
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    define: buildIdentityDefine,
+    // fix-path v5 is ESM-only. Leaving it external makes the CommonJS main
+    // bundle emit `require("fix-path")`, which returns a module namespace in
+    // packaged Electron and crashes before the first window opens with
+    // `TypeError: fixPath is not a function`. Bundle it into main so Vite
+    // preserves the default export interop.
+    plugins: [externalizeDepsPlugin({ exclude: ["fix-path"] })],
   },
   preload: {
+    define: buildIdentityDefine,
     // `@electron-toolkit/preload` must be bundled INTO the preload script:
     // the renderer windows run with `sandbox: true`, and a sandboxed preload's
     // `require` can only load `electron` plus a couple of node builtins — an
@@ -17,6 +28,7 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin({ exclude: ["@electron-toolkit/preload"] })],
   },
   renderer: {
+    define: buildIdentityDefine,
     server: {
       // Allow parallel worktrees to run `pnpm dev:desktop` side-by-side
       // (e.g. Multica Canary alongside a primary checkout) by overriding

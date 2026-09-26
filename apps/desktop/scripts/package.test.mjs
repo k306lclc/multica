@@ -10,6 +10,7 @@ import {
   envWithLocalBins,
   normalizeGitVersion,
   parsePackageArgs,
+  validateCoworkPackageArgs,
   resolveBuildMatrix,
   stripLeadingSeparator,
 } from "./package.mjs";
@@ -203,6 +204,27 @@ describe("parsePackageArgs", () => {
 
   it("tracks the all-platforms shortcut", () => {
     expect(parsePackageArgs(["--all-platforms", "--publish", "never"]).allPlatforms).toBe(true);
+  });
+});
+
+describe("validateCoworkPackageArgs", () => {
+  const forkArgs = [
+    "--mac", "--arm64", "--publish", "never",
+    "--config", "electron-builder.cowork.yml",
+  ];
+
+  it("accepts the explicit local fork packaging route", () => {
+    expect(() => validateCoworkPackageArgs(forkArgs, true)).not.toThrow();
+    expect(() => validateCoworkPackageArgs(["--mac", "--arm64"], false))
+      .not.toThrow();
+  });
+
+  it("rejects a fork bundle paired with the official identity or publication", () => {
+    expect(() => validateCoworkPackageArgs(forkArgs, false)).toThrow(/must match/);
+    expect(() => validateCoworkPackageArgs(["--mac", "--arm64"], true))
+      .toThrow(/must match/);
+    expect(() => validateCoworkPackageArgs(forkArgs.filter((value) => value !== "never"), true))
+      .toThrow(/publish never/);
   });
 });
 
