@@ -3,6 +3,7 @@ import { createEnDict } from "./en";
 import { createJaDict } from "./ja";
 import { createKoDict } from "./ko";
 import { createZhDict } from "./zh";
+import { createZhHantDict } from "./zh-hant";
 import {
   toLandingDictionaryLocale,
   type LandingDict,
@@ -18,6 +19,7 @@ const dictionaryFactories: Record<
   ja: createJaDict,
   ko: createKoDict,
   zh: createZhDict,
+  "zh-Hant": createZhHantDict,
 };
 
 // Locales without their own landing copy (e.g. French) reuse another
