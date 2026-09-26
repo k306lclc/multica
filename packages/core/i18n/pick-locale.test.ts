@@ -20,6 +20,7 @@ describe("matchLocale", () => {
 
   it("matches a clean supported tag", () => {
     expect(matchLocale(["zh-Hans"])).toBe("zh-Hans");
+    expect(matchLocale(["zh-Hant"])).toBe("zh-Hant");
     expect(matchLocale(["ko"])).toBe("ko");
     expect(matchLocale(["ja"])).toBe("ja");
     expect(matchLocale(["en"])).toBe("en");
@@ -29,6 +30,7 @@ describe("matchLocale", () => {
   it("collapses region-tagged BCP-47 to the supported base", () => {
     expect(matchLocale(["en-US"])).toBe("en");
     expect(matchLocale(["zh-Hans-CN"])).toBe("zh-Hans");
+    expect(matchLocale(["zh-Hant-TW"])).toBe("zh-Hant");
     expect(matchLocale(["ko-KR"])).toBe("ko");
     expect(matchLocale(["ja-JP"])).toBe("ja");
     expect(matchLocale(["fr-FR"])).toBe("fr");
@@ -39,8 +41,10 @@ describe("matchLocale", () => {
     expect(matchLocale(["es", "de"])).toBe("en");
   });
 
-  it("zh-Hant (traditional) collapses to zh-Hans — same base subtag, better UX than English fallback", () => {
-    expect(matchLocale(["zh-Hant"])).toBe("zh-Hans");
+  it("keeps Traditional Chinese separate from Simplified Chinese", () => {
+    expect(matchLocale(["zh-TW"])).toBe("zh-Hant");
+    expect(matchLocale(["zh-HK"])).toBe("zh-Hant");
+    expect(matchLocale(["zh-CN"])).toBe("zh-Hans");
   });
 
   it("uses the first supported candidate when multiple appear", () => {

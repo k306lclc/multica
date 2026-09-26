@@ -1747,7 +1747,7 @@ export class ApiClient {
   async createMikaAgent(
     data: {
       runtime_id: string;
-      language: "en" | "zh" | "ko" | "ja";
+      language: "en" | "zh" | "zh-Hant" | "ko" | "ja";
       /** Empty means "whatever the runtime defaults to". */
       model?: string;
       /** Label for the onboarding conversation, used only if this call is the
@@ -3719,7 +3719,7 @@ export class ApiClient {
   async startMikaOnboarding(
     sessionId: string,
     data: {
-      language: "en" | "zh" | "ko" | "ja";
+      language: "en" | "zh" | "zh-Hant" | "ko" | "ja";
     },
     workspaceSlug?: string,
   ): Promise<StartMikaOnboardingResponse> {
