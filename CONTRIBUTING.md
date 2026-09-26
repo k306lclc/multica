@@ -243,6 +243,16 @@ make stop-worktree    # stop
 make check-worktree   # verify
 ```
 
+### Handoff Between Development Machines
+
+When development or debugging moves between machines (for example, a MacBook
+and a Mac mini), the machine that completed and verified a coherent change
+commits it and pushes its working branch. The other machine fetches that same
+branch and fast-forwards its clean checkout before continuing. Check the Git
+root, branch, remote, and dirty state on both machines first. If either checkout
+has uncommitted work or the branches have diverged, reconcile that work
+explicitly; do not force-push or silently start a second source of truth.
+
 ### Git Identity in Managed Task Checkouts
 
 `multica repo checkout` uses the user's system/global Git identity, including
